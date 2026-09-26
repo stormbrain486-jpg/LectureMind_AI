@@ -1,0 +1,77 @@
+name: Build LectureMind AI for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# No npm cache is configured here on purpose.
+# This means the repository does NOT need package-lock.json just to start the build.
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+jobs:
+  build-windows:
+    name: Build Windows installer and portable app
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verify project files
+        shell: pwsh
+        run: |
+          $required = @(
+            "package.json",
+            "main.js",
+            "preload.js",
+            "LectureMind_AI_app.html"
+          )
+          foreach ($file in $required) {
+            if (!(Test-Path $file)) {
+              Write-Error "Missing required file: $file"
+              exit 1
+            }
+          }
+          Write-Host "Project structure OK."
+          Get-ChildItem -Force
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build Windows application
+        run: npm run build:win
+
+      - name: Verify build output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist")) {
+            Write-Error "dist folder was not created."
+            exit 1
+          }
+          $exes = Get-ChildItem -Path dist -Filter *.exe -File
+          if ($exes.Count -eq 0) {
+            Write-Error "No Windows .exe files were created."
+            Get-ChildItem -Path dist -Force
+            exit 1
+          }
+          $exes | Select-Object Name, Length
+
+      - name: Upload Windows EXE files
+        uses: actions/upload-artifact@v4
+        with:
+          name: LectureMind-AI-Windows
+          path: dist/*.exe
+          if-no-files-found: error
+          retention-days: 30
