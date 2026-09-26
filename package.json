@@ -43,7 +43,7 @@
           "arch": ["x64"]
         }
       ],
-      "publisherName": "LectureMind AI",
+  
       "verifyUpdateCodeSignature": false
     },
     "nsis": {
